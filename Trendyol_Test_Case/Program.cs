@@ -10,6 +10,9 @@ namespace Trendyol_Test_Case
     {
         static void Main(string[] args)
         {
+            
+            
+          
         }
     }
 }
