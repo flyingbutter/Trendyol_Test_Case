@@ -1,29 +1,151 @@
 ﻿using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Remote;
+using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Trendyol_Test_Case
 {
-    class Test_1
+
+    
+    [TestFixture(typeof(ChromeDriver))]
+    [TestFixture(typeof(FirefoxDriver))]
+    [Parallelizable(ParallelScope.Fixtures)]
+    public class Test_2<TWebDriver> where TWebDriver : IWebDriver, new()
+    {
+        string path = String.Format("{0}credentials_data.csv", AppDomain.CurrentDomain.BaseDirectory);
+        private List<IWebDriver> drivers=new List<IWebDriver>();
+        private List<string> handles = new List<string>();
+        private TWebDriver driver;
+
+        [SetUp]
+        public void Set_up()
+        {
+
+               this.driver = new TWebDriver();
+
+          
+        }
+
+        [Test]
+        public  void Test2_Login()
+        {
+            driver.Close();
+            var listOfActions = new List<Action>();
+
+          
+            using (var reader = new StreamReader(path))
+            {
+                int count = 0;
+                while (!reader.EndOfStream)
+                {
+                    string mail, password;
+                    var line = reader.ReadLine();
+                    var values = line.Split(',');
+                   
+             //       String handle = driver1.CurrentWindowHandle;//Return a string of alphanumeric window handle
+               //     handles.Add(handle);
+                    mail = values[0];
+                    password = values[1];
+                   
+                    listOfActions.Add(() => Test_paralel(mail, password,count));
+                    //    Task task = new Task(() => test_paralel(mail, password));
+                    //   task.Start();
+                   
+                    count++;
+                    
+                }
+                var options = new ParallelOptions { MaxDegreeOfParallelism = 4 };
+                Parallel.Invoke(options, listOfActions.ToArray());
+
+            }
+            
+           
+        }
+    
+
+
+        [TearDown]
+        public void End_Test2()
+        {
+          
+        }
+
+       public void Test_paralel(string mail,string password,int i)
+        {
+            IWebDriver driver = new TWebDriver();
+          //  drivers.Add(driver1);
+          //  IWebDriver driver = drivers[i-1];
+          //  driver.SwitchTo().Window(handles[i-1]);
+            driver.Navigate().GoToUrl("https://www.trendyol.com/");
+
+          //  var a = driver.FindElements(By.XPath("//*[@title='Kapat']"));
+
+       //     if (a.Count() != 0)
+      //      {
+                FindElement(By.XPath("//*[@title='Kapat']"),driver).Click();
+
+        //    }
+
+            Actions action = new Actions(driver);
+            action.MoveToElement(FindElement(By.XPath("//*[@id=\"accountNavigationRoot\"]/div/ul/li[1]/div[1]/i"),driver)).Perform();
+
+           FindElement(By.XPath("//*[@id=\"accountNavigationRoot\"]/div/ul/li[1]/div[2]/div/div[1]"),driver).Click();
+           FindElement(By.XPath("//*[@id=\"email\"]"),driver).SendKeys(mail);
+           FindElement(By.XPath("//*[@id=\"password\"]"),driver).SendKeys(password);
+           FindElement(By.XPath("//*[@id=\"loginSubmit\"]"),driver).Click();
+
+            Thread.Sleep(10000);
+            driver.Quit();
+            
+        }
+
+         public IWebElement FindElement(By by,IWebDriver driver_)
+        {
+
+            var wait = new WebDriverWait(driver_, TimeSpan.FromSeconds(60));
+            wait.Until(driver => driver_.FindElement(by));
+            return waitElement(by,driver_);
+
+        }
+
+        private IWebElement waitElement(By by,IWebDriver driver_)
+        {
+
+            var wait = new WebDriverWait(driver_, TimeSpan.FromSeconds(60));
+            var clickableElement = wait.Until(ExpectedConditions.ElementToBeClickable(by));
+            return driver_.FindElement(by);
+
+        }
+
+    }
+
+   public class Test_1
     {
 
         IWebDriver driver;
+      
+        string path = String.Format("{0}log.txt", AppDomain.CurrentDomain.BaseDirectory);
+
+
 
         [SetUp]
-        public void Initialize()
+        public void Initialize_Test1()
         {
 
             ChromeOptions options = new ChromeOptions();                    //Start selenium
             options.AddArguments("--start-maximized");                  //Fullscreen browser
 
-      //      options.PerformanceLoggingPreferences.IsCollectingNetworkEvents = true;
 
 
             var driverService = ChromeDriverService.CreateDefaultService();
@@ -31,10 +153,12 @@ namespace Trendyol_Test_Case
             driver = new ChromeDriver(driverService, options);
         }
 
+
+
+
         [Test]
-        public void Open_Page()
+        public void Test1_log_resource_timing()
         {
-            string scriptToExecute = "var performance = window.performance || window.mozPerformance || window.msPerformance || window.webkitPerformance || {}; var network = performance.getEntriesByType('resource') || {}; return network;";
 
             driver.Navigate()
                    .GoToUrl("http://www.trendyol.com/");
@@ -49,146 +173,66 @@ namespace Trendyol_Test_Case
         
             
 
-            IJavaScriptExecutor jse = (IJavaScriptExecutor)driver;
+           IJavaScriptExecutor jse = (IJavaScriptExecutor)driver;
+          
+            jse.ExecuteScript("performance.setResourceTimingBufferSize(5000);");
 
-            /*
-                      do
-                      {
+            while (driver.FindElements(By.XPath("//*[@id=\"littleCampaigns\"]/div[670]/div[1]/a/img")).Count()==0)
+            {
+                jse.ExecuteScript("window.scrollBy(0,90)");
+                Thread.Sleep(150);
+            }
+            jse.ExecuteScript("window.scrollBy(0,1000)");
+            Thread.Sleep(1000);
 
-                          jse.ExecuteScript("window.scrollBy(0,500)", "");
-
-
-                          Thread.Sleep(500);
-
-
-                      }   
-                      while (driver.FindElements(By.XPath("//*[@data-id='196783']")).Count() == 0);
-
+            var performance_ = (ReadOnlyCollection<Object>)jse.ExecuteScript("var performance = window.performance || window.mozPerformance || window.msPerformance || window.webkitPerformance || {}; var network = performance.getEntriesByType('resource') || {}; return network;");
 
 
 
-
-                      jse.ExecuteScript("window.scrollTo(0, document.body.scrollHeight)");
-
-
-                      while (driver.FindElements(By.XPath("//*[@data-id='196783']")).Count()==0)
-                      {
-                          Thread.Sleep(2000);
-                      }
-                      */
-
-            //       ReadOnlyCollection<Object> netData = (ReadOnlyCollection<Object>)jse.ExecuteScript(scriptToExecute);
-            //    ReadOnlyCollection<Object> netData_copy = (ReadOnlyCollection<Object>)jse.ExecuteScript(scriptToExecute);
-
-
-            IList<IWebElement> list = driver.FindElements(By.TagName("img"));
-            IList<IWebElement> temp_list = new List<IWebElement>();
-            IList<IWebElement> dif_list = list.Except(temp_list).ToList();
-            List<string> source_list = new List<string>();
-            temp_list=temp_list.Union(list).ToList();
 
             int count = 0;
-            int source_count = 0;
-            IList<IWebElement> bad_list = driver.FindElements(By.TagName("img"));
-
-            do
-            {
-                foreach (var item in dif_list)
-                {
-
-                                 try
-                              {
-                        string item_xpath = getElementXPath(item);
-
-                        if (item_xpath.Contains("ecaesliderkadin") || item_xpath.Contains("ilhamverenslider"))
-                            continue;
-
-                       
-                            Actions builder = new Actions(driver);
-                            builder.MoveToElement(item).Perform();
-                       
-
-                        
-
-                        string source = item.GetAttribute("src");
-                        source_list.Add(source);
-                        source_count++;
-                    }
-                    catch (Exception)
-                    {
-
-
-                    }
-
-                    if(source_count>9)
-                    {
-                        var asdf = (ReadOnlyCollection<Object>)jse.ExecuteScript("var performance = window.performance || window.mozPerformance || window.msPerformance || window.webkitPerformance || {}; var network = performance.getEntriesByName('" + source_list[source_count-9].Replace("\r", "").Replace("\n", "") + "') || {}; return network;");
-                       
-
-
-                    }
-
-
-
-
-
-                    count++;
-                    
-                }
-               
-                Thread.Sleep(100);
-                list = driver.FindElements(By.TagName("img"));
-                dif_list = list.Except(temp_list).ToList();
-                temp_list = temp_list.Union(list).ToList();
-
-            } while (dif_list.Count()!=0 || !driver.Url.Equals("https://www.trendyol.com/?pi=34"));
 
            
+            foreach (Dictionary<string, object> item in performance_) using (StreamWriter writer = new StreamWriter(path, true, Encoding.Unicode))
+                {
+                string name, duration;
+                if (!item["initiatorType"].Equals("img"))
+                {
+                    continue;
+                }
+                    else
+                {
+                    name = item["name"].ToString();
+                    duration = item["duration"].ToString();
+                        writer.AutoFlush = true;
+
+                        writer.WriteLine(count +"   :   "+name + "   :   " + duration
+                            , Encoding.Unicode);
+                        writer.Close();
+                        count++;
+                    }
+                  
+                }
 
 
-
-
-
-            /*
-
-                        do
-                        {
-
-                            jse.ExecuteScript("window.scrollBy(0,500)", "");
-
-
-
-                             netData =(ReadOnlyCollection<Object>)jse.ExecuteScript(scriptToExecute);
-
-                             var diff = netData.Except(netData_copy);
-
-                            netData_copy = netData;
-
-                        }
-                        while (driver.FindElements(By.XPath("//*[@data-id='196783']")).Count()==0);
-
-                */
-            jse.ExecuteScript("window.scrollBy(0,400)", "");
-
-
-            
+           
+         
             
 
 
         }
 
         [TearDown]
-        public void End_Test()
+        public void End_Test1()
         {
             driver.Close();
         }
 
+       
 
-
-
-        public String getElementXPath( IWebElement element)
-        {
-            return (String)((IJavaScriptExecutor)driver).ExecuteScript("gPt=function(c){if(c.id!==''){return'id(\"'+c.id+'\")'}if(c===document.body){return c.tagName}var a=0;var e=c.parentNode.childNodes;for(var b=0;b<e.length;b++){var d=e[b];if(d===c){return gPt(c.parentNode)+'/'+c.tagName+'['+(a+1)+']'}if(d.nodeType===1&&d.tagName===c.tagName){a++}}};return gPt(arguments[0]).toLowerCase();", element);
-        }
     }
+
+   
+
+
 }
