@@ -23,6 +23,8 @@ namespace Trendyol_Test_Case
     [Parallelizable(ParallelScope.Fixtures)]
     public class Test_2<TWebDriver> where TWebDriver : IWebDriver, new()
     {
+     
+                      
         string path = String.Format("{0}credentials_data.csv", AppDomain.CurrentDomain.BaseDirectory);
         private List<IWebDriver> drivers=new List<IWebDriver>();
         private List<string> handles = new List<string>();
@@ -143,14 +145,12 @@ namespace Trendyol_Test_Case
         public void Initialize_Test1()
         {
 
-            ChromeOptions options = new ChromeOptions();                    //Start selenium
-            options.AddArguments("--start-maximized");                  //Fullscreen browser
-
-
-
-            var driverService = ChromeDriverService.CreateDefaultService();
-            driverService.HideCommandPromptWindow = true;                   //hide the command prompt that opens with browser
-            driver = new ChromeDriver(driverService, options);
+           // ChromeOptions options = new ChromeOptions();                    //Start selenium
+          //  options.AddArguments("--start-maximized");                  //Fullscreen browser
+         //   var driverService = ChromeDriverService.CreateDefaultService();
+          //  driverService.HideCommandPromptWindow = true;                   //hide the command prompt that opens with browser
+          //  driver = new ChromeDriver(driverService, options);
+            driver = new FirefoxDriver();
         }
 
 
@@ -177,23 +177,40 @@ namespace Trendyol_Test_Case
           
             jse.ExecuteScript("performance.setResourceTimingBufferSize(5000);");
 
-            while (driver.FindElements(By.XPath("//*[@id=\"littleCampaigns\"]/div[670]/div[1]/a/img")).Count()==0)
+            while (driver.FindElements(By.XPath("//*[@id=\"littleCampaigns\"]/div[686]/div[1]/a/img")).Count()==0)
             {
-                jse.ExecuteScript("window.scrollBy(0,90)");
+                jse.ExecuteScript("window.scrollBy(0,250)");
                 Thread.Sleep(150);
+                
             }
             jse.ExecuteScript("window.scrollBy(0,1000)");
             Thread.Sleep(1000);
 
+            List<string> img_src = new List<string>();
+            List<string> entry_name = new List<string>();
+
             var performance_ = (ReadOnlyCollection<Object>)jse.ExecuteScript("var performance = window.performance || window.mozPerformance || window.msPerformance || window.webkitPerformance || {}; var network = performance.getEntriesByType('resource') || {}; return network;");
 
+           var images = driver.FindElements(By.TagName("img"));
 
+            foreach (var element in images)
+            {
+                try
+                {
+                    img_src.Add(element.GetAttribute("src"));
+                }
+                catch (Exception)
+                {
 
+                 
+                }
+            }
 
             int count = 0;
+            StreamWriter writer = new StreamWriter(path, true, Encoding.Unicode);
+            writer.AutoFlush = true;
 
-           
-            foreach (Dictionary<string, object> item in performance_) using (StreamWriter writer = new StreamWriter(path, true, Encoding.Unicode))
+            foreach (Dictionary<string, object> item in performance_) 
                 {
                 string name, duration;
                 if (!item["initiatorType"].Equals("img"))
@@ -204,21 +221,26 @@ namespace Trendyol_Test_Case
                 {
                     name = item["name"].ToString();
                     duration = item["duration"].ToString();
-                        writer.AutoFlush = true;
+                        entry_name.Add(name);
+                       
 
                         writer.WriteLine(count +"   :   "+name + "   :   " + duration
                             , Encoding.Unicode);
-                        writer.Close();
+                       
                         count++;
                     }
                   
                 }
 
+            List<string> failed_entries = img_src.Except(entry_name).ToList();
 
-           
-         
-            
+            foreach (var item in failed_entries)
+            {
+                writer.WriteLine(count + "   :   " + item + "   :   failed"
+                                          , Encoding.Unicode);
+            }
 
+            writer.Close();
 
         }
 
